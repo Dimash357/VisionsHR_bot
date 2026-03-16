@@ -5,13 +5,13 @@ from datetime import datetime, timedelta
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from openpyxl import Workbook, load_workbook
 
 # ================== НАСТРОЙКИ ==================
 TOKEN = "8678946305:AAGSHg3mGWiIy8K2jEChMmcghppKPNhsGXE"
-ADMIN_ID = 980044682
+ADMIN_ID = 8703856692
 EXCEL_FILE = "answers.xlsx"
 
 dp = Dispatcher()
@@ -39,11 +39,13 @@ SCHOOL_BLOCK_TEXT = (
 )
 
 FORM_STEPS = [
-    ("fio", "1/5) Укажите ваше ФИО."),
-    ("city", "2/5) Ваш город?"),
-    ("sales_exp", "3/5) Сколько лет опыта в продажах?"),
-    ("why_us", "4/5) Почему хотите работать именно в нашей школе?"),
-    ("hours", "5/5) Сколько часов готовы уделять работе?")
+    ("fio", "1/6) Укажите ваше ФИО."),
+    ("city", "2/6) Ваш город?"),
+    ("sales_exp", "3/6) Сколько лет опыта в продажах?"),
+    ("why_us", "4/6) Почему хотите работать именно в нашей школе?"),
+    ("hours", "5/6) Сколько часов готовы уделять работе?"),
+    ("contacts", "6/6) Оставьте, пожалуйста, ваши контакты для связи: ник в Telegram, номер телефона или WhatsApp")
+
 ]
 
 HEADERS = [
@@ -56,7 +58,8 @@ HEADERS = [
     "Почему Visions",
     "Часы в неделю",
     "Scrum ответ",
-    "Facilitation ответ"
+    "Facilitation ответ",
+    "Контакты"
 ]
 
 
@@ -117,6 +120,7 @@ def save_to_excel(user_id, username, a):
         a["hours"],
         a.get("scrum_answer"),
         a.get("fac_answer"),
+        a.get("contacts")
     ])
     wb.save(EXCEL_FILE)
 
@@ -333,10 +337,36 @@ async def fac_answer(cb: CallbackQuery):
     u["state"] = "interview"
     u["interview_at"] = get_next_interview_datetime(datetime.now())
 
+    text = (
+        "📩 <b>Еще одна анкета!</b>\n\n"
+        f"👤 ФИО: {u['answers']['fio']}\n"
+        f"🏙 Город: {u['answers']['city']}\n"
+        f"💼 Опыт продаж: {u['answers']['sales_exp']}\n"
+        f"❓ Почему Visions: {u['answers']['why_us']}\n"
+        f"⏰ Часы: {u['answers']['hours']}\n\n"
+        f"📞 Contacts: {u['answers']['contacts']}\n\n"
+        f"Telegram: @{cb.from_user.username}\n"
+        f"ID: {cb.from_user.id}"
+    )
+
     save_to_excel(
         cb.from_user.id,
         cb.from_user.username or "",
         u["answers"]
+    )
+
+    await cb.bot.send_message(
+        ADMIN_ID,
+        text,
+        parse_mode="HTML"
+    )
+
+    file = FSInputFile(EXCEL_FILE)
+
+    await cb.bot.send_document(
+        ADMIN_ID,
+        document=file,
+        caption="📊 Excel таблица с кандидатами"
     )
 
     await cb.message.answer(
@@ -345,8 +375,10 @@ async def fac_answer(cb: CallbackQuery):
         "📸 Instagram: https://instagram.com/visions.kz\n"
         "📲 Telegram: https://t.me/visionskz\n\n"
         "Приглашаем вас на онлайн-встречу:\n"
-        "🗓 Среда, 12:30\n\n"
-        "Подтвердите участие 👇🏻",
+        "🗓 Среда, 12:30 (по Астане)\n\n"
+        "Если вы готовы продолжить сотрудничество, напишите нашему менеджеру "
+        "@atomynation со словом «готов».\n\n"
+        "Сможете прийти на онлайн-встречу?👇",
         reply_markup=yes_no_kb1(),
         parse_mode="HTML",
         disable_web_page_preview=True
